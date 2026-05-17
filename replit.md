@@ -1,10 +1,11 @@
-# [Project name]
+# SkyLog — Aviation Flight Logger
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A personal flight logbook for aviation enthusiasts. Log every flight you've taken, track statistics, visualize carbon emissions, and explore your aviation history.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080)
+- `pnpm --filter @workspace/flight-logger run dev` — run the frontend (port 18738)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
@@ -14,6 +15,7 @@ _Replace the heading above with the project's name, and this line with one sente
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
+- Frontend: React + Vite + Tailwind CSS + shadcn/ui + Recharts
 - API: Express 5
 - DB: PostgreSQL + Drizzle ORM
 - Validation: Zod (`zod/v4`), `drizzle-zod`
@@ -22,23 +24,33 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `lib/api-spec/openapi.yaml` — API contract (source of truth)
+- `lib/db/src/schema/flights.ts` — Flights table schema
+- `lib/db/src/schema/profiles.ts` — User profile schema
+- `artifacts/api-server/src/routes/flights.ts` — Flight CRUD routes
+- `artifacts/api-server/src/routes/profile.ts` — Profile routes
+- `artifacts/api-server/src/routes/stats.ts` — Stats + carbon endpoints
+- `artifacts/flight-logger/src/` — React frontend
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Single-user logbook app — no authentication needed, profile is auto-created on first access
+- Carbon emissions calculated server-side using ICAO-based formula: base rate × class multiplier (economy 1x, premium 1.5x, business 2.5x, first 3x)
+- Stats are computed at query time from raw flight data (no materialized views)
+- Profile is lazy-initialized: GET /profile creates a default if none exists
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
-
-## User preferences
-
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Dashboard: key stats overview, recent flights, carbon summary
+- Logbook: sortable full flight list with add/edit/delete
+- Statistics: yearly breakdown, top destinations, top airlines, carbon by class
+- Profile: editable name, home airport, bio
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Always run `pnpm run typecheck:libs` after adding new DB schema exports before running `api-server typecheck`
+- `departureDate` is stored as `text` (YYYY-MM-DD) in DB — Orval coerces it to `Date` object in the schema, so routes convert it back to string with `toDateString()`
+- After each OpenAPI spec change, re-run codegen before using the updated types
 
 ## Pointers
 

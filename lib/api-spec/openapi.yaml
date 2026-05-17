@@ -3,20 +3,25 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Flight Logger API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: flights
+    description: Flight log operations
+  - name: profile
+    description: User profile operations
+  - name: stats
+    description: Statistics and analytics
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +29,199 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /flights:
+    get:
+      operationId: listFlights
+      tags: [flights]
+      summary: List all flights
+      responses:
+        "200":
+          description: List of flights
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Flight"
+    post:
+      operationId: createFlight
+      tags: [flights]
+      summary: Log a new flight
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FlightInput"
+      responses:
+        "201":
+          description: Flight created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Flight"
+
+  /flights/{id}:
+    get:
+      operationId: getFlight
+      tags: [flights]
+      summary: Get a flight by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Flight found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Flight"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateFlight
+      tags: [flights]
+      summary: Update a flight
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FlightUpdate"
+      responses:
+        "200":
+          description: Flight updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Flight"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteFlight
+      tags: [flights]
+      summary: Delete a flight
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /profile:
+    get:
+      operationId: getProfile
+      tags: [profile]
+      summary: Get user profile
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+    put:
+      operationId: updateProfile
+      tags: [profile]
+      summary: Update user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileInput"
+      responses:
+        "200":
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+
+  /stats:
+    get:
+      operationId: getStats
+      tags: [stats]
+      summary: Get overall flight statistics
+      responses:
+        "200":
+          description: Overall stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlightStats"
+
+  /stats/carbon:
+    get:
+      operationId: getCarbonStats
+      tags: [stats]
+      summary: Get carbon emissions breakdown
+      responses:
+        "200":
+          description: Carbon stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarbonStats"
+
+  /stats/by-year:
+    get:
+      operationId: getStatsByYear
+      tags: [stats]
+      summary: Get flights grouped by year
+      responses:
+        "200":
+          description: Yearly stats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/YearlyStats"
+
+  /stats/destinations:
+    get:
+      operationId: getTopDestinations
+      tags: [stats]
+      summary: Get most visited airports/destinations
+      responses:
+        "200":
+          description: Top destinations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DestinationStat"
+
+  /stats/airlines:
+    get:
+      operationId: getTopAirlines
+      tags: [stats]
+      summary: Get most flown airlines with counts
+      responses:
+        "200":
+          description: Top airlines
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AirlineStat"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +232,263 @@ components:
       required:
         - status
 
+    Flight:
+      type: object
+      required:
+        - id
+        - departureAirport
+        - arrivalAirport
+        - departureDate
+        - airline
+        - seatClass
+        - createdAt
+      properties:
+        id:
+          type: integer
+        flightNumber:
+          type: ["string", "null"]
+        airline:
+          type: string
+        aircraftType:
+          type: ["string", "null"]
+        departureAirport:
+          type: string
+          description: IATA airport code (e.g. LHR)
+        arrivalAirport:
+          type: string
+          description: IATA airport code (e.g. JFK)
+        departureCity:
+          type: ["string", "null"]
+        arrivalCity:
+          type: ["string", "null"]
+        departureDate:
+          type: string
+          format: date
+        durationMinutes:
+          type: ["integer", "null"]
+        distanceKm:
+          type: ["integer", "null"]
+        seatClass:
+          type: string
+          enum: [economy, premium_economy, business, first]
+        notes:
+          type: ["string", "null"]
+        carbonKg:
+          type: ["number", "null"]
+          description: Estimated CO2 in kilograms
+        createdAt:
+          type: string
+          format: date-time
+
+    FlightInput:
+      type: object
+      required:
+        - departureAirport
+        - arrivalAirport
+        - departureDate
+        - airline
+        - seatClass
+      properties:
+        flightNumber:
+          type: string
+        airline:
+          type: string
+        aircraftType:
+          type: string
+        departureAirport:
+          type: string
+        arrivalAirport:
+          type: string
+        departureCity:
+          type: string
+        arrivalCity:
+          type: string
+        departureDate:
+          type: string
+          format: date
+        durationMinutes:
+          type: integer
+        distanceKm:
+          type: integer
+        seatClass:
+          type: string
+          enum: [economy, premium_economy, business, first]
+        notes:
+          type: string
+
+    FlightUpdate:
+      type: object
+      properties:
+        flightNumber:
+          type: string
+        airline:
+          type: string
+        aircraftType:
+          type: string
+        departureAirport:
+          type: string
+        arrivalAirport:
+          type: string
+        departureCity:
+          type: string
+        arrivalCity:
+          type: string
+        departureDate:
+          type: string
+          format: date
+        durationMinutes:
+          type: integer
+        distanceKm:
+          type: integer
+        seatClass:
+          type: string
+          enum: [economy, premium_economy, business, first]
+        notes:
+          type: string
+
+    Profile:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        homeAirport:
+          type: ["string", "null"]
+        bio:
+          type: ["string", "null"]
+        avatarInitials:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    ProfileInput:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        homeAirport:
+          type: string
+        bio:
+          type: string
+        avatarInitials:
+          type: string
+
+    FlightStats:
+      type: object
+      required:
+        - totalFlights
+        - totalDistanceKm
+        - totalCarbonKg
+        - uniqueAirports
+        - uniqueCountries
+        - uniqueAirlines
+        - flightsByClass
+      properties:
+        totalFlights:
+          type: integer
+        totalDistanceKm:
+          type: integer
+        totalCarbonKg:
+          type: number
+        uniqueAirports:
+          type: integer
+        uniqueCountries:
+          type: integer
+        uniqueAirlines:
+          type: integer
+        longestFlightKm:
+          type: ["integer", "null"]
+        longestFlightRoute:
+          type: ["string", "null"]
+        flightsByClass:
+          type: object
+          additionalProperties:
+            type: integer
+
+    CarbonStats:
+      type: object
+      required:
+        - totalCarbonKg
+        - byYear
+        - byClass
+        - treesEquivalent
+      properties:
+        totalCarbonKg:
+          type: number
+        byYear:
+          type: array
+          items:
+            type: object
+            required: [year, carbonKg]
+            properties:
+              year:
+                type: integer
+              carbonKg:
+                type: number
+        byClass:
+          type: array
+          items:
+            type: object
+            required: [seatClass, carbonKg, flights]
+            properties:
+              seatClass:
+                type: string
+              carbonKg:
+                type: number
+              flights:
+                type: integer
+        treesEquivalent:
+          type: number
+          description: Number of trees needed to offset total carbon
+
+    YearlyStats:
+      type: object
+      required:
+        - year
+        - flights
+        - distanceKm
+        - carbonKg
+      properties:
+        year:
+          type: integer
+        flights:
+          type: integer
+        distanceKm:
+          type: integer
+        carbonKg:
+          type: number
+
+    DestinationStat:
+      type: object
+      required:
+        - airport
+        - city
+        - visits
+      properties:
+        airport:
+          type: string
+        city:
+          type: ["string", "null"]
+        visits:
+          type: integer
+
+    AirlineStat:
+      type: object
+      required:
+        - airline
+        - flights
+        - distanceKm
+      properties:
+        airline:
+          type: string
+        flights:
+          type: integer
+        distanceKm:
+          type: integer
