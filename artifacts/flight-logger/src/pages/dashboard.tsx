@@ -1,6 +1,5 @@
 import { 
   useGetStats, 
-  useGetListFlights, 
   useListFlights,
   useGetCarbonStats,
   getGetStatsQueryKey,

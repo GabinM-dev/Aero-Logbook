@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { db, flightsTable } from "@workspace/db";
+import { requireAuth, getUserId } from "../middlewares/requireAuth";
 import {
   CreateFlightBody,
   GetFlightParams,
@@ -32,15 +33,18 @@ function computeCarbonKg(distanceKm: number, seatClass: string): number {
   return Math.round(distanceKm * baseRate * multiplier * 10) / 10;
 }
 
-router.get("/flights", async (req, res): Promise<void> => {
+router.get("/flights", requireAuth, async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const flights = await db
     .select()
     .from(flightsTable)
+    .where(eq(flightsTable.userId, userId))
     .orderBy(desc(flightsTable.departureDate));
   res.json(ListFlightsResponse.parse(flights));
 });
 
-router.post("/flights", async (req, res): Promise<void> => {
+router.post("/flights", requireAuth, async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const parsed = CreateFlightBody.safeParse(req.body);
   if (!parsed.success) {
     req.log.warn({ errors: parsed.error.message }, "Invalid flight body");
@@ -57,6 +61,7 @@ router.post("/flights", async (req, res): Promise<void> => {
   const [flight] = await db
     .insert(flightsTable)
     .values({
+      userId,
       flightNumber: d.flightNumber ?? null,
       airline: d.airline,
       aircraftType: d.aircraftType ?? null,
@@ -76,7 +81,8 @@ router.post("/flights", async (req, res): Promise<void> => {
   res.status(201).json(GetFlightResponse.parse(flight));
 });
 
-router.get("/flights/:id", async (req, res): Promise<void> => {
+router.get("/flights/:id", requireAuth, async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const params = GetFlightParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -86,7 +92,7 @@ router.get("/flights/:id", async (req, res): Promise<void> => {
   const [flight] = await db
     .select()
     .from(flightsTable)
-    .where(eq(flightsTable.id, params.data.id));
+    .where(and(eq(flightsTable.id, params.data.id), eq(flightsTable.userId, userId)));
 
   if (!flight) {
     res.status(404).json({ error: "Flight not found" });
@@ -96,7 +102,8 @@ router.get("/flights/:id", async (req, res): Promise<void> => {
   res.json(GetFlightResponse.parse(flight));
 });
 
-router.patch("/flights/:id", async (req, res): Promise<void> => {
+router.patch("/flights/:id", requireAuth, async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const params = UpdateFlightParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -136,7 +143,7 @@ router.patch("/flights/:id", async (req, res): Promise<void> => {
   const [flight] = await db
     .update(flightsTable)
     .set(updateData as any)
-    .where(eq(flightsTable.id, params.data.id))
+    .where(and(eq(flightsTable.id, params.data.id), eq(flightsTable.userId, userId)))
     .returning();
 
   if (!flight) {
@@ -147,7 +154,8 @@ router.patch("/flights/:id", async (req, res): Promise<void> => {
   res.json(UpdateFlightResponse.parse(flight));
 });
 
-router.delete("/flights/:id", async (req, res): Promise<void> => {
+router.delete("/flights/:id", requireAuth, async (req, res): Promise<void> => {
+  const userId = getUserId(req);
   const params = DeleteFlightParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -156,7 +164,7 @@ router.delete("/flights/:id", async (req, res): Promise<void> => {
 
   const [flight] = await db
     .delete(flightsTable)
-    .where(eq(flightsTable.id, params.data.id))
+    .where(and(eq(flightsTable.id, params.data.id), eq(flightsTable.userId, userId)))
     .returning();
 
   if (!flight) {

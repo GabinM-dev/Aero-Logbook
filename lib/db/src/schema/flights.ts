@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 
 export const flightsTable = pgTable("flights", {
   id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
   flightNumber: text("flight_number"),
   airline: text("airline").notNull(),
   aircraftType: text("aircraft_type"),

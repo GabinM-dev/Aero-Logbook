@@ -1,5 +1,7 @@
 import { Router, type IRouter } from "express";
+import { eq } from "drizzle-orm";
 import { db, flightsTable } from "@workspace/db";
+import { requireAuth, getUserId } from "../middlewares/requireAuth";
 import {
   GetStatsResponse,
   GetCarbonStatsResponse,
@@ -10,8 +12,12 @@ import {
 
 const router: IRouter = Router();
 
-router.get("/stats", async (req, res): Promise<void> => {
-  const flights = await db.select().from(flightsTable);
+router.get("/stats", requireAuth, async (req, res): Promise<void> => {
+  const userId = getUserId(req);
+  const flights = await db
+    .select()
+    .from(flightsTable)
+    .where(eq(flightsTable.userId, userId));
 
   const totalFlights = flights.length;
   const totalDistanceKm = flights.reduce((sum, f) => sum + (f.distanceKm ?? 0), 0);
@@ -27,15 +33,13 @@ router.get("/stats", async (req, res): Promise<void> => {
   const airlines = new Set(flights.map((f) => f.airline));
   const uniqueAirlines = airlines.size;
 
-  // Crude country count from IATA codes (first char gives rough region, not country)
-  // We'll count unique country-like groupings from airport codes
   const countries = new Set<string>();
   for (const f of flights) {
     [f.departureCity, f.arrivalCity].forEach((city) => {
       if (city) countries.add(city.split(",").pop()?.trim() ?? city);
     });
   }
-  const uniqueCountries = Math.max(countries.size, 1);
+  const uniqueCountries = Math.max(countries.size, totalFlights > 0 ? 1 : 0);
 
   const flightsByClass: Record<string, number> = {};
   for (const f of flights) {
@@ -66,8 +70,12 @@ router.get("/stats", async (req, res): Promise<void> => {
   );
 });
 
-router.get("/stats/carbon", async (req, res): Promise<void> => {
-  const flights = await db.select().from(flightsTable);
+router.get("/stats/carbon", requireAuth, async (req, res): Promise<void> => {
+  const userId = getUserId(req);
+  const flights = await db
+    .select()
+    .from(flightsTable)
+    .where(eq(flightsTable.userId, userId));
 
   const totalCarbonKg = flights.reduce((sum, f) => sum + (f.carbonKg ?? 0), 0);
 
@@ -92,7 +100,6 @@ router.get("/stats/carbon", async (req, res): Promise<void> => {
     flights: data.flights,
   }));
 
-  // A mature tree absorbs ~21 kg CO2/year
   const treesEquivalent = Math.round((totalCarbonKg / 21) * 10) / 10;
 
   res.json(
@@ -105,8 +112,12 @@ router.get("/stats/carbon", async (req, res): Promise<void> => {
   );
 });
 
-router.get("/stats/by-year", async (req, res): Promise<void> => {
-  const flights = await db.select().from(flightsTable);
+router.get("/stats/by-year", requireAuth, async (req, res): Promise<void> => {
+  const userId = getUserId(req);
+  const flights = await db
+    .select()
+    .from(flightsTable)
+    .where(eq(flightsTable.userId, userId));
 
   const byYearMap: Record<number, { flights: number; distanceKm: number; carbonKg: number }> = {};
   for (const f of flights) {
@@ -129,8 +140,12 @@ router.get("/stats/by-year", async (req, res): Promise<void> => {
   res.json(GetStatsByYearResponse.parse(result));
 });
 
-router.get("/stats/destinations", async (req, res): Promise<void> => {
-  const flights = await db.select().from(flightsTable);
+router.get("/stats/destinations", requireAuth, async (req, res): Promise<void> => {
+  const userId = getUserId(req);
+  const flights = await db
+    .select()
+    .from(flightsTable)
+    .where(eq(flightsTable.userId, userId));
 
   const destMap: Record<string, { city: string | null; visits: number }> = {};
   for (const f of flights) {
@@ -148,8 +163,12 @@ router.get("/stats/destinations", async (req, res): Promise<void> => {
   res.json(GetTopDestinationsResponse.parse(result));
 });
 
-router.get("/stats/airlines", async (req, res): Promise<void> => {
-  const flights = await db.select().from(flightsTable);
+router.get("/stats/airlines", requireAuth, async (req, res): Promise<void> => {
+  const userId = getUserId(req);
+  const flights = await db
+    .select()
+    .from(flightsTable)
+    .where(eq(flightsTable.userId, userId));
 
   const airlineMap: Record<string, { flights: number; distanceKm: number }> = {};
   for (const f of flights) {
